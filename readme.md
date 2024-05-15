@@ -100,3 +100,196 @@ db.carros.deleteOne({marca: "Dodge"})
 Apaga os carros com o cv 285
 db.carros.deleteMany({cv: 285})
 ```
+
+# Agregações
+## Agrupar documentos
+Mostra apenas os documentos que têm mais que uma visualização e agrupoa os documentos pela marca e soma cada marca as visualizações
+```
+db.carros.aggregate([
+    {
+        $match: {visualizacoes: {$gt: 1}}
+    },
+
+    {
+        $group: {
+            _id: "$marca",
+            totalVisualizacoes: {$sum: "$visualizacoes"}
+        }
+    },
+])
+```
+
+## Agrupa os documentos com o id único
+```
+db.carros.aggregate(
+    [
+        {
+            $group: {_id: "$marca"}
+        }
+    ]
+)
+```
+
+## Limitar o número de documentos passados
+```
+db.carros.aggregate(
+    [
+        {
+            $limit: 1
+        }
+    ]
+)
+```
+
+## Documentos com campos específicos com limite
+```
+db.carros.aggregate([
+    {
+        $project: {
+            "marca": 1,
+            "modelo": 1
+        }
+    },
+
+    {
+        $limit: 1
+    }
+])
+```
+
+## Ordenar por cada documento
+Ordena por ordem decrescente com limite 4
+```
+db.carros.aggregate([
+    {
+        $sort: {"cv": -1}
+    },
+
+    {
+        $project: {
+            "marca": 1,
+            "modelo": 1,
+            "cv": 1
+        }
+    },
+    {
+        $limit: 4
+    }
+])
+```
+
+## Correspondência de documentos
+Documentos que correspondem com um campo
+```
+db.carros.aggregate([
+    {
+        $match: {marca: "Ferrari"}
+    },
+    {
+        $limit: 2
+    },
+    {
+        $project: {
+        "marca": 1,
+        "modelo": 1,
+        }
+    }
+])
+```
+
+## Adicionar um campo novo num documento
+```
+db.carros.aggregate([
+    {
+        $addFields: {
+            "tracao": "awd"
+        }
+    },
+    {
+        $project: {
+            "marca": 1,
+            "modelo": 1,
+            "tracao": 1
+        }
+    },
+    {
+        $limit: 5
+    }
+])
+```
+
+## Contagem de documentos
+```
+db.carros.aggregate([
+    {
+        $match: {"marca":"Ferrari"}
+    },
+    {
+        $count: "totalFerraris"
+    }
+])
+```
+
+## Lookup - Juntar documentos
+Criação de uma nova coleção e inserir um comentário de um carro
+```
+db.createCollection("comentarios")
+db.comentarios.insertOne(
+  {
+    "_id": ObjectId("663a54904cd9045b54ef6350"),
+    "carro_id": ObjectId("663a4be84cd9045b54ef634b"),
+    "comentario": "Este carro é incrível!"
+
+  }
+)
+```
+
+```
+db.comentarios.aggregate([
+  {
+    $lookup: {
+    from: "carros",
+    localField: "carro_id",
+    foreignField: "_id",
+    as: "carro_detalhes",
+    },
+  },
+  {
+    $limit: 1
+  }
+])
+```
+
+## Validação
+```
+db.createCollection("motas", {
+  validator: {
+    $jsonSchema: {
+    bsonType: "object",
+    required: [ "marca", "modelo", "cilindrada" ],
+    properties: {
+        marca: {
+        bsonType: "string",
+        description: "Marca da moto - Obrigatório."
+        },
+        modelo: {
+        bsonType: "string",
+        description: "Modelo da moto - Obrigatório."
+        },
+        cilindrada: {
+        bsonType: "int",
+        description: "Cilindrada da moto (em cc) - Obrigatório."
+        },
+        cor: {
+        bsonType: "string",
+        description: "Cor da moto - Opcional."
+        },
+        preco: {
+        bsonType: "decimal",
+        description: "Preço da moto - Opcional."
+        }
+    }
+    }
+  }
+})
+```
